@@ -9,9 +9,8 @@
 2. **NO hardcoded config paths.** Validate existence; log loading.  
 3. **ALL decisions LOCKED before code.** This roadmap is executable, not guidance.  
 4. **One source of truth per system:** One UI (Chainlit), one compose, one entrypoint per service, one dep manager (pyproject.toml).  
-5. **Deterministic operations:** No random hashes, use SHA256/MD5 stable IDs, reproducible chunks, Redis embedding cache, and idempotent indexing for **operationally deterministic** behavior at the pipeline level (not API-level guarantees; HF Inference outputs may vary slightly on first call).  
+5. **Deterministic operations:** No random hashes, use SHA256/MD5 stable IDs, reproducible chunks, operationally deterministic via normalized text + caching (not API-level guarantees).  
 6. **Evidence first:** Every claim comes with `docker logs`, `curl`, or file artifacts in `evidence/`.
-7. **Determinism boundary:** Determinism is enforced at the RAG pipeline level; upstream HF Inference APIs may be nondeterministic, mitigated via caching and logged evidence.
 
 ---
 
@@ -30,42 +29,16 @@
 
 | Component | Choice | Rationale | Fallback |
 |-----------|--------|-----------|----------|
-| **Embeddings** | all-MiniLM-L6-v2 (HF API) | 384 dim, fast, free tier; pipeline-level determinism via text normalization, stable chunk IDs (MD5), stable point IDs (SHA256), Redis embedding cache, and idempotent indexing (HF Inference API outputs may vary slightly; caching makes repeated runs stable after the first call). | None (NOT ALLOWED IN THIS TEST) |
-| **LLM** | Qwen/Qwen2.5-1.5B-Instruct (HF API) | Smallest, fastest, free tier verified | None (NOT ALLOWED IN THIS TEST) |
-| **Eval Judge LLM** | Same as RAG LLM | Consistency guarantee | None (NOT ALLOWED IN THIS TEST) |
-| **Vector DB** | Qdrant (Docker persistent) | Production-grade local + deterministic | None (NOT ALLOWED IN THIS TEST) |
-| **Agent** | LangGraph StateGraph | Transparent routing + multi-node | None (NOT ALLOWED IN THIS TEST) |
-| **UI** | **Chainlit ONLY** | LangChain native integration + step visibility | None (NOT ALLOWED IN THIS TEST) |
-| **Cache/Memory** | Redis (Docker) | Dedup layer, rate-limit counter, conversational state | None (NOT ALLOWED IN THIS TEST) |
-| **API** | FastAPI | Async, OpenAPI auto-docs, production-ready | None (NOT ALLOWED IN THIS TEST) |
-| **Evaluation** | RAGAS (with small model judge) | Faithfulness metric + open-source | None (NOT ALLOWED IN THIS TEST) |
-| **Web Search** | DuckDuckGo (free, no key) | No authentication required | None (NOT ALLOWED IN THIS TEST) |
-
----
-
-## CONTINGENCY APPENDIX (NOT USED IN THE TEST)
-
-The following alternatives are **not** part of the locked stack and **must not** be used in this test unless:
-
-- The evaluator explicitly requests their use, **or**
-- The primary provider is unavailable or failing in a way that blocks completion of the test.
-
-If any contingency is used, it **must** be documented in `evidence/` with:
-
-- The exact reason it was required, and  
-- Supporting logs/commands (e.g., `docker logs`, `curl` failures).
-
-### Contingency options (for emergency-only use)
-
-- **Embedding model contingency**: `BAAI/bge-small-en-v1.5` (only if all-MiniLM-L6-v2 is unavailable).
-- **LLM contingency**: `mistralai/Mistral-7B-Instruct-v0.2` or similar Mistral 7B variants (only if Qwen/Qwen2.5-1.5B-Instruct is unavailable).
-- **Evaluation framework contingency**: DeepEval (only if RAGAS cannot be executed).
-- **Web search contingency**: Tavily via `TAVILY_API_KEY` (only if DuckDuckGo-based search is not functioning or blocked).
-
-These contingencies are **appendix-only references** and do **not** change:
-
-- The locked defaults in the environment variables (`EMBEDDING_MODEL` default all-MiniLM-L6-v2, `LLM_MODEL` default Qwen/Qwen2.5-1.5B-Instruct), or  
-- Any milestones, endpoints, ports, or repository blueprint defined elsewhere in this document.
+| **Embeddings** | all-MiniLM-L6-v2 (HF API) | 384 dim, fast, free tier, operationally deterministic via SHA256 caching | BAAI/bge-small-en-v1.5 optional |
+| **LLM** | Qwen/Qwen2.5-1.5B-Instruct (HF API) | Smallest, fastest, free tier verified | Mistral 7B optional |
+| **Eval Judge LLM** | Same as RAG LLM | Consistency guarantee | Document bias/limitations in report |
+| **Vector DB** | Qdrant (Docker persistent) | Production-grade local + deterministic | None — locked |
+| **Agent** | LangGraph StateGraph | Transparent routing + multi-node | None — locked |
+| **UI** | **Chainlit ONLY** | LangChain native integration + step visibility | None — locked (Streamlit removed) |
+| **Cache/Memory** | Redis (Docker) | Dedup layer, rate-limit counter, conversational state | None — locked |
+| **API** | FastAPI | Async, OpenAPI auto-docs, production-ready | None — locked |
+| **Evaluation** | RAGAS (with small model judge) | Faithfulness metric + open-source | DeepEval optional |
+| **Web Search** | DuckDuckGo (free, no key) | No authentication required | Tavily optional via TAVILY_API_KEY env |
 
 ---
 
@@ -1131,7 +1104,7 @@ git log --oneline | head -30
 ✅ **One API:** FastAPI only (port 8000, 6 endpoints, OpenAPI auto-docs)  
 ✅ **One Dep Manager:** pyproject.toml ([project.optional-dependencies] dev ONLY source of pip truth)  
 ✅ **One Compose:** docker-compose.yml (exactly 4 services: app, vectordb, redis, openclaw; all have health checks)  
-✅ **One Embedding Model:** all-MiniLM-L6-v2 (HF API, 384 dim, pipeline-level deterministic via caching; HF Inference responses themselves may vary slightly per uncached call)  
+✅ **One Embedding Model:** all-MiniLM-L6-v2 (HF API, 384 dim, deterministic)  
 ✅ **One LLM:** Qwen 1.5B (HF API, for RAG + eval judge, same model for consistency)  
 ✅ **One Vector DB:** Qdrant (Docker service, persistent volumes, point_id deterministic)  
 ✅ **One Cache:** Redis (dedup layer + embed cache + rate-limit counter + conversation memory)  
