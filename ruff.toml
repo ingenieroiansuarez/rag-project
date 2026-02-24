@@ -1,10 +1,13 @@
-[tool.ruff]
 line-length = 100
 target-version = "py311"
-select = ["E", "F", "W", "I"]
-fix = true
-show-fixes = true
 
-[tool.ruff.per-file-ignores]
+[format]
+# Format settings 
+
+[lint]
+select = ["E", "F", "W", "I"]
+fixable = ["ALL"]
+
+[lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/**" = ["F841"]
