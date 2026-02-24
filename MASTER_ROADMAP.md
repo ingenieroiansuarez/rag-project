@@ -1117,7 +1117,7 @@ No conflicts. No optional UI. No competing implementations. One path to executio
 
 ```bash
 # 1. BOOTSTRAP (M0–M1: 5 min)
-git clone <repo> rag-project && cd rag-project
+git clone https://github.com/ingenieroiansuarez/rag-project.git rag-project && cd rag-project
 export HF_TOKEN="hf_YOUR_TOKEN_HERE"
 pip install -e ".[dev]"
 docker compose up --build -d
